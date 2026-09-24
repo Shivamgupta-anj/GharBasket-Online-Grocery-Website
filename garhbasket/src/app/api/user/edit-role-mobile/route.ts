@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     // {email:session?.user?.email},
     // {role, mobile, roleSelected: true},
     // {new:true}
-)
+
           console.log("USER FOUND:", user)  
 
         if(!user){
