@@ -301,7 +301,7 @@ function Nav({ user }: { user: Iuser }) {
               <span className="text-white font-black text-sm">G</span>
             </div>
             <span className="text-white font-extrabold text-xl sm:text-2xl tracking-tight hidden sm:block">
-              GarhBasket
+              GharBasket
             </span>
           </Link>
           {user.role=="user" && <form

@@ -1,3 +1,575 @@
+// 'use client'
+
+// import React, { useState, useEffect } from 'react'
+// import { useRouter } from 'next/navigation'
+// import { useSelector } from 'react-redux'
+// import { RootState } from '@/redux/store'
+// import { motion, AnimatePresence } from 'framer-motion'
+// import {
+//   ArrowLeft,
+//   MapPin,
+//   User,
+//   Phone,
+//   Home,
+//   Building,
+//   Locate,
+//   LocateFixed,
+//   CreditCard,
+//   Truck,
+//   CheckCircle2,
+//   Clock,
+//   ShieldCheck,
+//   ArrowRight
+// } from 'lucide-react'
+// import axios from 'axios'
+// import dynamic from 'next/dynamic'
+// import 'leaflet/dist/leaflet.css'
+
+// // Dynamically import Leaflet Map to avoid SSR issues
+// const MapComponent = dynamic(
+//   () =>
+//     import('react-leaflet').then(async (mod) => {
+//       const L = (await import('leaflet')).default
+
+//       const markerIcon = new L.Icon({
+//         iconUrl: 'https://cdn-icons-png.flaticon.com/128/684/684908.png',
+//         iconSize: [36, 36],
+//         iconAnchor: [18, 36],
+//       })
+
+//       const { MapContainer, TileLayer, Marker, useMap } = mod
+
+//       const RecenterMap = ({ position }: { position: [number, number] }) => {
+//         const map = useMap()
+//         useEffect(() => {
+//           map.setView(position, 15, { animate: true })
+//         }, [position, map])
+//         return null
+//       }
+
+//       const DraggableMarker = ({
+//         position,
+//         setPosition,
+//       }: {
+//         position: [number, number]
+//         setPosition: (p: [number, number]) => void
+//       }) => {
+//         return (
+//           <Marker
+//             icon={markerIcon}
+//             position={position}
+//             draggable={true}
+//             eventHandlers={{
+//               dragend: (e: L.LeafletEvent) => {
+//                 const marker = e.target as L.Marker
+//                 const { lat, lng } = marker.getLatLng()
+//                 setPosition([lat, lng])
+//               },
+//             }}
+//           />
+//         )
+//       }
+
+//       return function LeafletMap({
+//         position,
+//         setPosition,
+//       }: {
+//         position: [number, number]
+//         setPosition: (p: [number, number]) => void
+//       }) {
+//         return (
+//           <MapContainer center={position} zoom={15} scrollWheelZoom={true} className="w-full h-full">
+//             <TileLayer
+//               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+//               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+//             />
+//             <RecenterMap position={position} />
+//             <DraggableMarker position={position} setPosition={setPosition} />
+//           </MapContainer>
+//         )
+//       }, { ssr: false }
+// )
+
+// export default function CheckoutPage() {
+//   const router = useRouter()
+//   const { userData } = useSelector((state: RootState) => state.user)
+//   const { cartData, finalTotal } = useSelector((state: RootState) => state.cart)
+
+//   const [activeStep, setActiveStep] = useState<1 | 2 | 3 | 4>(1)
+//   const [paymentMethod, setPaymentMethod] = useState<'cod' | 'online'>('cod')
+//   const [deliverySlot, setDeliverySlot] = useState('Express 15-30 Mins')
+//   const [isSubmitting, setIsSubmitting] = useState(false)
+
+//   const [address, setAddress] = useState({
+//     fullName: userData?.name || '',
+//     mobile: userData?.mobile || '',
+//     city: 'Garhwal',
+//     pincode: '246001',
+//     fullAddress: '',
+//   })
+
+//   const [searchQuery, setSearchQuery] = useState('')
+//   const [position, setPosition] = useState<[number, number] | null>([30.15, 78.5])
+
+//   useEffect(() => {
+//     if (userData) {
+//       setAddress((prev) => ({
+//         ...prev,
+//         fullName: userData.name || prev.fullName,
+//         mobile: userData.mobile || prev.mobile,
+//       }))
+//     }
+//   }, [userData])
+
+//   // Get user geolocation
+//   useEffect(() => {
+//     if (navigator.geolocation) {
+//       navigator.geolocation.getCurrentPosition(
+//         (pos) => {
+//           const { latitude, longitude } = pos.coords
+//           setPosition([latitude, longitude])
+//         },
+//         (err) => console.log('Geolocation error:', err),
+//         { enableHighAccuracy: true, timeout: 10000 }
+//       )
+//     }
+//   }, [])
+
+//   // Reverse Geocoding via OpenStreetMap Nominatim
+//   useEffect(() => {
+//     const fetchAddress = async () => {
+//       if (!position) return
+//       try {
+//         const res = await axios.get(
+//           `https://nominatim.openstreetmap.org/reverse?lat=${position[0]}&lon=${position[1]}&format=json`
+//         )
+//         const addr = res.data.address
+//         setAddress((prev) => ({
+//           ...prev,
+//           city: addr.city || addr.town || addr.village || addr.county || prev.city,
+//           pincode: addr.postcode || prev.pincode,
+//           fullAddress: res.data.display_name || prev.fullAddress,
+//         }))
+//       } catch (err) {
+//         console.log('Reverse geocode error:', err)
+//       }
+//     }
+//     fetchAddress()
+//   }, [position])
+
+//   const handleSearchLocation = async () => {
+//     if (!searchQuery.trim()) return
+//     try {
+//       const res = await axios.get(
+//         `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery)}&format=json&limit=1`
+//       )
+//       if (res.data && res.data.length > 0) {
+//         const { lat, lon } = res.data[0]
+//         setPosition([parseFloat(lat), parseFloat(lon)])
+//       } else {
+//         alert('No location results found.')
+//       }
+//     } catch (err) {
+//       console.log('Location search error:', err)
+//     }
+//   }
+
+//   // Handle Place Order logic
+//   const handlePlaceOrder = async () => {
+//     if (!position) {
+//       alert('Please select your delivery address location.')
+//       return
+//     }
+//     if (!address.fullName || !address.mobile || !address.fullAddress) {
+//       alert('Please fill out all required address fields.')
+//       return
+//     }
+
+//     setIsSubmitting(true)
+
+//     const orderPayload = {
+//       userId: userData?._id,
+//       items: cartData.map((item) => ({
+//         grocery: item._id,
+//         name: item.name,
+//         price: item.price,
+//         unit: item.unit,
+//         quantity: item.quantity,
+//         image: item.image,
+//       })),
+//       totalAmount: finalTotal,
+//       address: {
+//         fullName: address.fullName,
+//         mobile: address.mobile,
+//         city: address.city,
+//         pincode: address.pincode,
+//         fullAddress: address.fullAddress,
+//         latitude: position[0],
+//         longitude: position[1],
+//       },
+//       paymentMethod,
+//     }
+
+//     try {
+//       if (paymentMethod === 'cod') {
+//         await axios.post('/api/user/order', orderPayload)
+//         router.push('/user/order-success')
+//       } else {
+//         const res = await axios.post('/api/user/payment', orderPayload)
+//         if (res.data && res.data.url) {
+//           window.location.href = res.data.url
+//         } else {
+//           alert('Failed to initiate online payment session.')
+//         }
+//       }
+//     } catch (err) {
+//       console.error('Order placement error:', err)
+//       alert('An error occurred while placing your order. Please try again.')
+//     } finally {
+//       setIsSubmitting(false)
+//     }
+//   }
+
+//   const steps = [
+//     { id: 1, title: 'Address' },
+//     { id: 2, title: 'Slot' },
+//     { id: 3, title: 'Payment' },
+//     { id: 4, title: 'Review' },
+//   ]
+
+//   return (
+//     <div className="min-h-screen bg-slate-50 pb-28 max-w-3xl mx-auto px-4 py-4 space-y-4">
+//       {/* Top Header */}
+//       <div className="flex items-center justify-between">
+//         <button
+//           onClick={() => router.back()}
+//           className="p-2 rounded-xl bg-white text-slate-700 shadow-2xs hover:bg-slate-100 transition-all flex items-center gap-1 text-xs font-semibold"
+//         >
+//           <ArrowLeft className="w-4 h-4" /> Back to Cart
+//         </button>
+//         <h1 className="text-lg font-black text-slate-800">Checkout</h1>
+//         <div className="w-16" />
+//       </div>
+
+//       {/* Mobile Stepper Bar */}
+//       <div className="bg-white rounded-2xl p-3 border border-slate-100 shadow-2xs flex items-center justify-between">
+//         {steps.map((s, idx) => (
+//           <React.Fragment key={s.id}>
+//             <div
+//               onClick={() => setActiveStep(s.id as any)}
+//               className="flex items-center gap-1.5 cursor-pointer"
+//             >
+//               <div
+//                 className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs transition-all ${
+//                   activeStep >= s.id
+//                     ? 'bg-emerald-600 text-white shadow-xs'
+//                     : 'bg-slate-100 text-slate-400'
+//                 }`}
+//               >
+//                 {activeStep > s.id ? <CheckCircle2 className="w-4 h-4" /> : s.id}
+//               </div>
+//               <span
+//                 className={`text-xs font-bold hidden sm:inline ${
+//                   activeStep === s.id ? 'text-emerald-700' : 'text-slate-500'
+//                 }`}
+//               >
+//                 {s.title}
+//               </span>
+//             </div>
+//             {idx < steps.length - 1 && (
+//               <div
+//                 className={`h-0.5 grow mx-1.5 rounded-full transition-all ${
+//                   activeStep > s.id ? 'bg-emerald-500' : 'bg-slate-200'
+//                 }`}
+//               />
+//             )}
+//           </React.Fragment>
+//         ))}
+//       </div>
+
+//       {/* Step 1: Address */}
+//       {activeStep === 1 && (
+//         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+//           <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-2xs space-y-4">
+//             <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+//               <MapPin className="text-emerald-600" /> Delivery Address & Pin Location
+//             </h2>
+
+//             <div className="space-y-3">
+//               <div className="relative">
+//                 <User className="absolute left-3 top-3 text-slate-400 w-4 h-4" />
+//                 <input
+//                   type="text"
+//                   value={address.fullName}
+//                   onChange={(e) => setAddress({ ...address, fullName: e.target.value })}
+//                   placeholder="Full Name"
+//                   className="pl-9 w-full border border-slate-200 rounded-xl p-2.5 text-xs font-medium outline-none focus:border-emerald-500"
+//                 />
+//               </div>
+
+//               <div className="relative">
+//                 <Phone className="absolute left-3 top-3 text-slate-400 w-4 h-4" />
+//                 <input
+//                   type="text"
+//                   value={address.mobile}
+//                   onChange={(e) => setAddress({ ...address, mobile: e.target.value })}
+//                   placeholder="Mobile Number"
+//                   className="pl-9 w-full border border-slate-200 rounded-xl p-2.5 text-xs font-medium outline-none focus:border-emerald-500"
+//                 />
+//               </div>
+
+//               <div className="relative">
+//                 <Home className="absolute left-3 top-3 text-slate-400 w-4 h-4" />
+//                 <input
+//                   type="text"
+//                   value={address.fullAddress}
+//                   onChange={(e) => setAddress({ ...address, fullAddress: e.target.value })}
+//                   placeholder="House/Flat No., Street Name, Area"
+//                   className="pl-9 w-full border border-slate-200 rounded-xl p-2.5 text-xs font-medium outline-none focus:border-emerald-500"
+//                 />
+//               </div>
+
+//               <div className="grid grid-cols-2 gap-3">
+//                 <div className="relative">
+//                   <Building className="absolute left-3 top-3 text-slate-400 w-4 h-4" />
+//                   <input
+//                     type="text"
+//                     value={address.city}
+//                     onChange={(e) => setAddress({ ...address, city: e.target.value })}
+//                     placeholder="City"
+//                     className="pl-9 w-full border border-slate-200 rounded-xl p-2.5 text-xs font-medium outline-none focus:border-emerald-500"
+//                   />
+//                 </div>
+//                 <div className="relative">
+//                   <Locate className="absolute left-3 top-3 text-slate-400 w-4 h-4" />
+//                   <input
+//                     type="text"
+//                     value={address.pincode}
+//                     onChange={(e) => setAddress({ ...address, pincode: e.target.value })}
+//                     placeholder="Pincode"
+//                     className="pl-9 w-full border border-slate-200 rounded-xl p-2.5 text-xs font-medium outline-none focus:border-emerald-500"
+//                   />
+//                 </div>
+//               </div>
+
+//               <div className="flex gap-2">
+//                 <input
+//                   type="text"
+//                   value={searchQuery}
+//                   onChange={(e) => setSearchQuery(e.target.value)}
+//                   placeholder="Search map location..."
+//                   className="grow border border-slate-200 rounded-xl p-2.5 text-xs font-medium outline-none"
+//                 />
+//                 <button
+//                   type="button"
+//                   onClick={handleSearchLocation}
+//                   className="bg-slate-900 text-white font-bold text-xs px-4 rounded-xl"
+//                 >
+//                   Locate
+//                 </button>
+//               </div>
+
+//               {/* Map Locator Component */}
+//               <div className="relative h-64 rounded-2xl overflow-hidden border border-slate-200">
+//                 {position && <MapComponent position={position} setPosition={setPosition} />}
+//                 <button
+//                   type="button"
+//                   onClick={() => {
+//                     if (navigator.geolocation) {
+//                       navigator.geolocation.getCurrentPosition((pos) => {
+//                         setPosition([pos.coords.latitude, pos.coords.longitude])
+//                       })
+//                     }
+//                   }}
+//                   className="absolute bottom-3 right-3 z-10 bg-emerald-600 text-white p-2.5 rounded-full shadow-lg hover:bg-emerald-700 transition"
+//                   aria-label="Use current location"
+//                 >
+//                   <LocateFixed className="w-5 h-5" />
+//                 </button>
+//               </div>
+//             </div>
+
+//             <button
+//               onClick={() => setActiveStep(2)}
+//               className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-2xl shadow-md transition"
+//             >
+//               Continue to Delivery Slot
+//             </button>
+//           </div>
+//         </motion.div>
+//       )}
+
+//       {/* Step 2: Delivery Slot */}
+//       {activeStep === 2 && (
+//         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+//           <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-2xs space-y-4">
+//             <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+//               <Clock className="text-emerald-600" /> Select Delivery Time Slot
+//             </h2>
+
+//             <div className="space-y-3">
+//               {[
+//                 { name: 'Express 15-30 Mins', desc: 'Instant dispatch by nearest GharBasket rider', icon: Truck },
+//                 { name: 'Today Evening (5 PM - 8 PM)', desc: 'Standard evening delivery slot', icon: Clock },
+//                 { name: 'Tomorrow Morning (7 AM - 10 AM)', desc: 'Early morning fresh delivery', icon: Clock },
+//               ].map((slot) => {
+//                 const Icon = slot.icon
+//                 return (
+//                   <div
+//                     key={slot.name}
+//                     onClick={() => setDeliverySlot(slot.name)}
+//                     className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-center justify-between ${
+//                       deliverySlot === slot.name
+//                         ? 'border-emerald-500 bg-emerald-50/70 shadow-xs'
+//                         : 'border-slate-100 hover:bg-slate-50'
+//                     }`}
+//                   >
+//                     <div className="flex items-center gap-3">
+//                       <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-emerald-600 border border-slate-200">
+//                         <Icon className="w-5 h-5" />
+//                       </div>
+//                       <div>
+//                         <p className="text-xs font-bold text-slate-800">{slot.name}</p>
+//                         <p className="text-[11px] text-slate-500">{slot.desc}</p>
+//                       </div>
+//                     </div>
+//                     {deliverySlot === slot.name && (
+//                       <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+//                     )}
+//                   </div>
+//                 )
+//               })}
+//             </div>
+
+//             <div className="flex gap-3">
+//               <button
+//                 onClick={() => setActiveStep(1)}
+//                 className="py-3 px-4 bg-slate-100 text-slate-700 font-bold text-xs rounded-2xl"
+//               >
+//                 Back
+//               </button>
+//               <button
+//                 onClick={() => setActiveStep(3)}
+//                 className="grow py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-2xl shadow-md transition"
+//               >
+//                 Continue to Payment
+//               </button>
+//             </div>
+//           </div>
+//         </motion.div>
+//       )}
+
+//       {/* Step 3: Payment Method */}
+//       {activeStep === 3 && (
+//         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+//           <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-2xs space-y-4">
+//             <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+//               <CreditCard className="text-emerald-600" /> Select Payment Method
+//             </h2>
+
+//             <div className="space-y-3">
+//               <div
+//                 onClick={() => setPaymentMethod('cod')}
+//                 className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-center justify-between ${
+//                   paymentMethod === 'cod'
+//                     ? 'border-emerald-500 bg-emerald-50/70 shadow-xs'
+//                     : 'border-slate-100 hover:bg-slate-50'
+//                 }`}
+//               >
+//                 <div className="flex items-center gap-3">
+//                   <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-black text-xs border border-amber-200">
+//                     COD
+//                   </div>
+//                   <div>
+//                     <p className="text-xs font-bold text-slate-800">Cash / UPI on Delivery</p>
+//                     <p className="text-[11px] text-slate-500">Pay cash or scan QR upon delivery</p>
+//                   </div>
+//                 </div>
+//                 {paymentMethod === 'cod' && <CheckCircle2 className="w-5 h-5 text-emerald-600" />}
+//               </div>
+
+//               <div
+//                 onClick={() => setPaymentMethod('online')}
+//                 className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-center justify-between ${
+//                   paymentMethod === 'online'
+//                     ? 'border-emerald-500 bg-emerald-50/70 shadow-xs'
+//                     : 'border-slate-100 hover:bg-slate-50'
+//                 }`}
+//               >
+//                 <div className="flex items-center gap-3">
+//                   <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-black text-xs border border-purple-200">
+//                     CARD
+//                   </div>
+//                   <div>
+//                     <p className="text-xs font-bold text-slate-800">Online Payment (Stripe / Cards / UPI)</p>
+//                     <p className="text-[11px] text-slate-500">Instant secure checkout via Stripe</p>
+//                   </div>
+//                 </div>
+//                 {paymentMethod === 'online' && <CheckCircle2 className="w-5 h-5 text-emerald-600" />}
+//               </div>
+//             </div>
+
+//             <div className="flex gap-3">
+//               <button
+//                 onClick={() => setActiveStep(2)}
+//                 className="py-3 px-4 bg-slate-100 text-slate-700 font-bold text-xs rounded-2xl"
+//               >
+//                 Back
+//               </button>
+//               <button
+//                 onClick={() => setActiveStep(4)}
+//                 className="grow py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-2xl shadow-md transition"
+//               >
+//                 Review Order
+//               </button>
+//             </div>
+//           </div>
+//         </motion.div>
+//       )}
+
+//       {/* Step 4: Final Order Review */}
+//       {activeStep === 4 && (
+//         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+//           <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-2xs space-y-4">
+//             <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+//               <ShieldCheck className="text-emerald-600" /> Order Summary & Review
+//             </h2>
+
+//             <div className="space-y-2 text-xs text-slate-600 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+//               <p className="font-bold text-slate-900 text-sm">Delivery To:</p>
+//               <p className="font-semibold text-slate-800">{address.fullName} ({address.mobile})</p>
+//               <p>{address.fullAddress}, {address.city} - {address.pincode}</p>
+//               <div className="border-t border-slate-200 my-2 pt-2 flex justify-between">
+//                 <span>Selected Slot:</span>
+//                 <span className="font-bold text-emerald-700">{deliverySlot}</span>
+//               </div>
+//               <div className="flex justify-between">
+//                 <span>Payment Mode:</span>
+//                 <span className="font-bold uppercase text-slate-900">{paymentMethod}</span>
+//               </div>
+//             </div>
+
+//             {/* Total */}
+//             <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+//               <div>
+//                 <p className="text-xs text-slate-500 font-medium">Final Order Amount</p>
+//                 <p className="text-xl font-black text-slate-900">₹{finalTotal}</p>
+//               </div>
+//               <button
+//                 disabled={isSubmitting}
+//                 onClick={handlePlaceOrder}
+//                 className="py-3 px-6 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-bold text-xs rounded-2xl shadow-lg shadow-emerald-600/30 flex items-center gap-2 transition"
+//               >
+//                 {isSubmitting ? 'Placing Order...' : 'Confirm & Place Order'} <ArrowRight className="w-4 h-4" />
+//               </button>
+//             </div>
+//           </div>
+//         </motion.div>
+//       )}
+//     </div>
+//   )
+// }
+
 // // // // 'use client'
 
 // // // // import React, { useState,useEffect } from 'react'
